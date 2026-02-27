@@ -10,8 +10,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : "";
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
+    origin: frontendUrl,
     credentials: true
 }));
 app.use(express.json());
@@ -73,11 +75,14 @@ app.post('/api/login', async (req, res) => {
             { expiresIn: '24h' }
         );
 
+        // Determine if we should use secure cookies (HTTPS)
+        const isProduction = process.env.NODE_ENV === 'production' || !frontendUrl.includes('localhost');
+
         // Send as HTTP-only cookie
         res.cookie('token', token, {
             httpOnly: true,
-            secure: false, // Set to true in production (HTTPS required)
-            sameSite: 'lax',
+            secure: isProduction, // Required for cross-site cookies in most browsers
+            sameSite: isProduction ? 'none' : 'lax', // 'none' + secure is required for cross-domain
             maxAge: 24 * 60 * 60 * 1000 // 1 day
         });
 
