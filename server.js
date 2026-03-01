@@ -10,10 +10,27 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : "";
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://kodflix-ui.vercel.app',
+    'https://kodflix-frontend-ui.vercel.app'
+];
+
+if (process.env.FRONTEND_URL) {
+    const envUrl = process.env.FRONTEND_URL.replace(/\/$/, "");
+    if (!allowedOrigins.includes(envUrl)) {
+        allowedOrigins.push(envUrl);
+    }
+}
 
 app.use(cors({
-    origin: frontendUrl,
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 app.use(express.json());
@@ -76,7 +93,8 @@ app.post('/api/login', async (req, res) => {
         );
 
         // Determine if we should use secure cookies (HTTPS)
-        const isProduction = process.env.NODE_ENV === 'production' || !frontendUrl.includes('localhost');
+        const origin = req.headers.origin || process.env.FRONTEND_URL || '';
+        const isProduction = process.env.NODE_ENV === 'production' || !origin.includes('localhost');
 
         // Send as HTTP-only cookie
         res.cookie('token', token, {
