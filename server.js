@@ -119,8 +119,35 @@ app.post('/api/logout', (req, res) => {
     res.json({ message: 'Logged out successfully' });
 });
 
+// 5. Ping route to keep Render active
+app.get('/api/ping', (req, res) => {
+    res.status(200).json({ message: 'pong', timestamp: new Date() });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+
+    // Self-ping mechanism to keep Render instance active
+    // Render spins down free web services after 15 minutes of inactivity.
+    // Ensure you have a BACKEND_URL environment variable set to your public Render URL
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+    const pingUrl = `${backendUrl.replace(/\/$/, "")}/api/ping`;
+
+    // 14 minutes = 14 * 60 * 1000 ms
+    setInterval(() => {
+        console.log(`Pinging backend trying to keep it alive: ${pingUrl}`);
+        const protocol = pingUrl.startsWith('https') ? require('https') : require('http');
+
+        protocol.get(pingUrl, (res) => {
+            if (res.statusCode === 200) {
+                console.log(`Self-ping successful - ${new Date().toISOString()}`);
+            } else {
+                console.log(`Self-ping failed with status code: ${res.statusCode}`);
+            }
+        }).on('error', (err) => {
+            console.error('Self-ping error:', err.message);
+        });
+    }, 14 * 60 * 1000);
 });
 
 module.exports = app;
